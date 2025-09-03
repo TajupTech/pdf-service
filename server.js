@@ -1,7 +1,8 @@
 import express from "express";
 import cors from "cors";
 import bodyParser from "body-parser";
-import puppeteer from "puppeteer";
+import puppeteer from "puppeteer-core";
+import chromium from "@sparticuz/chromium";
 
 const app = express();
 app.use(cors({ origin: "*" }));
@@ -11,7 +12,6 @@ const API_KEY = process.env.API_KEY;
 
 app.post("/generate-pdf", async (req, res) => {
   try {
-    // 🔒 API key check
     const apiKey = req.headers["x-api-key"];
     if (!API_KEY || apiKey !== API_KEY) {
       return res.status(401).json({ error: "Unauthorized" });
@@ -21,13 +21,14 @@ app.post("/generate-pdf", async (req, res) => {
     if (!html) return res.status(400).json({ error: "Missing `html`" });
 
     const browser = await puppeteer.launch({
-      headless: "new",
-      args: ["--no-sandbox", "--disable-setuid-sandbox"]
+      args: chromium.args,
+      defaultViewport: chromium.defaultViewport,
+      executablePath: await chromium.executablePath(),
+      headless: chromium.headless,
     });
+
     const page = await browser.newPage();
-
     try { await page.emulateMediaType(emulateMedia); } catch {}
-
     await page.setContent(html, { waitUntil: "networkidle0", timeout: 60000 });
 
     const pdfBuffer = await page.pdf({
